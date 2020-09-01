@@ -6,7 +6,7 @@ description   = "Tool/Lib to highlight text in CLI by using regular expressions.
 license       = "MIT"
 srcDir        = "src"
 installExt    = @["nim"]
-bin           = @["nimhighlight"]
+bin           = @["highlight"]
 
 
 
