@@ -1,5 +1,6 @@
-# This is just an example to get you started. A typical hybrid package
-# uses this file as the main entry point of the application.
+## Cli-Tool to colorize the input given by stdin.
+##
+## author: Raimund Hübel
 
 import strutils
 import re
@@ -10,10 +11,18 @@ import algorithm
 import json
 
 
-const IS_DEBUG = false
+# CompileTime-Var to allow Debug-Mode in the Application
+# flag: -d:allow_debug_mode
+# see: https://nim-lang.org/docs/manual.html#implementation-specific-pragmas-compile-time-define-pragmas
+const allow_debug_mode {.booldefine.}: bool = false
+const ALLOW_DEBUG_MODE: bool = allow_debug_mode
 
 
+# Common ASCII Escape-Code to reset the console.
 const colorCodeReset  = "\x1B[0m";
+
+
+# Maps the Colornames to its ASCII-Color-Codes for Foreground/Background.
 const colorCodesMap = {
     "":        (fg:  0, bg:  0),
     "black":   (fg: 30, bg: 40),
@@ -28,19 +37,24 @@ const colorCodesMap = {
 
 
 type HighlightConfigEntry = ref object of RootObj
+    ## Class which describes an colorization-Entry, provided by cli-args or config-file
     regexp:  string
     colorFg: string
     colorBg: string
 
-type HighlightCommand = ref object of RootObj
+type HighlightCommand* = ref object of RootObj
+    ## HighlighterCommand, representing the Highlighter-Program in Object-Form
     inputFile:          File
     isHelp:             bool
-    isDebug:            bool
     isInitConfig:       bool
     isPrintLineNumbers: bool
+    isPrintVersion:     bool
+    when ALLOW_DEBUG_MODE:
+        isDebug:        bool
     configEntries: seq[HighlightConfigEntry]
 
 type Breakpoint = tuple
+    ## Colorbreakpoints which are detected by applying all Regex to an input line.
     pos:     int
     prio:    int
     isReset: bool
@@ -48,17 +62,21 @@ type Breakpoint = tuple
     colorBg: string
 
 
+
 proc newHighlightCommand*(withConfig: bool = true): HighlightCommand =
+    ## Provides a HighlighterCommand configured an optional config file if wished.
     result = HighlightCommand()
     result.inputFile = stdin
-    result.isDebug   = IS_DEBUG
+    when ALLOW_DEBUG_MODE:
+        result.isDebug   = false
     if not withConfig:
         return result
     let appConfigFilename = "." & os.extractFilename(os.getAppFilename()) & ".json"
     if os.existsFile(appConfigFilename):
         let jsonApp = json.parseFile(appConfigFilename)
-        if jsonApp.hasKey("isDebug"):
-            result.isDebug = jsonApp["isDebug"].getBool(false)
+        when ALLOW_DEBUG_MODE:
+            if jsonApp.hasKey("isDebug"):
+                result.isDebug = jsonApp["isDebug"].getBool(false)
         if jsonApp.hasKey("isPrintLineNumbers"):
             result.isPrintLineNumbers = jsonApp["isPrintLineNumbers"].getBool(false)
         if jsonApp.hasKey("colorEntries"):
@@ -79,8 +97,8 @@ proc newHighlightCommand*(withConfig: bool = true): HighlightCommand =
 
 
 proc newHighlightCommandFromCliArgs*(args: seq[TaintedString], withConfig: bool = true): HighlightCommand =
+    ## Provides a HighlighterCommand configured by the given cli-arguments and an optional config file if wished.
     result = newHighlightCommand(withConfig=withConfig)
-
     var optParser = initOptParser(args)
     for optKind, optKey, optVal in optParser.getopt():
         case optKind:
@@ -102,8 +120,11 @@ proc newHighlightCommandFromCliArgs*(args: seq[TaintedString], withConfig: bool 
                 result.isPrintLineNumbers = true
             elif (optKey == "i" or optKey == "init"):
                 result.isInitConfig = true
+            elif (optKey == "v" or optKey == "version"):
+                result.isPrintVersion = true
             elif (optKey == "d" or optKey == "debug"):
-                result.isDebug = true
+                when ALLOW_DEBUG_MODE:
+                    result.isDebug = true
             else:
                 assert(false)
         of cmdArgument:
@@ -115,11 +136,13 @@ proc newHighlightCommandFromCliArgs*(args: seq[TaintedString], withConfig: bool 
 
 
 proc newHighlightCommandFromCliArgs*(withConfig: bool = true): HighlightCommand =
+    ## Provides a HighlighterCommand configured by the implicit cli-arguments and an optional config file if wished.
     return newHighlightCommandFromCliArgs(os.commandLineParams(), withConfig=withConfig)
 
 
 
 proc doPrintHelp(highlightCommand: HighlightCommand) =
+    ## Prints the Help of the Application to the console.
     let appName = os.extractFilename(os.getAppFilename())
     echo "Usage: " & appName & " [OPTIONS]"
     echo ""
@@ -131,7 +154,8 @@ proc doPrintHelp(highlightCommand: HighlightCommand) =
     echo "  -n  | --numbers     Print line numbers"
     echo "  -i  | --init        Creates config file " & appName & ".json with the given arguments"
     echo "  -v  | --version     Print program version"
-    echo "  -d  | --debug       Print debug output"
+    when ALLOW_DEBUG_MODE:
+        echo "  -d  | --debug       Print debug output"
     echo ""
     echo "Colors:"
     echo "  black | white | red | green | blue | yellow | cyan | magenta"
@@ -141,7 +165,24 @@ proc doPrintHelp(highlightCommand: HighlightCommand) =
 
 
 
+when true:
+    template currSourceDirectory(): string =
+        os.normalizedPath(instantiationInfo(-1, true).filename / "..")
+    proc getVersionString(): string {.compiletime.} =
+        let execFile: string = os.normalizedPath(currSourceDirectory() / ".." / "scripts" / "get_version_string.sh" )
+        let versionStr = staticExec(execFile)
+        return versionStr
+    const VERSION_STR: string = getVersionString()
+
+
+proc doPrintVersion(highlightCommand: HighlightCommand) =
+    ## Prints the Version of the Application to the console.
+    echo VERSION_STR
+
+
+
 proc doCreateConfig(self: HighlightCommand) =
+    ## Creates a config file in the current working directory with the name '.highlight.json'.
     let appConfigFilename = "." & os.extractFilename(os.getAppFilename()) & ".json"
     echo "Erstelle " & appConfigFilename
     let jsonApp = newJObject()
@@ -154,14 +195,17 @@ proc doCreateConfig(self: HighlightCommand) =
         let jsonEntry = newJString(configEntry.regexp & ":" & configEntry.colorFg & ":" & configEntry.colorBg)
         jsonEntries.add(jsonEntry)
     jsonApp.add( "colorEntries", jsonEntries )
-    if self.isDebug:
-        echo jsonApp.pretty(indent=4)
+    when ALLOW_DEBUG_MODE:
+        if self.isDebug:
+            echo jsonApp.pretty(indent=4)
     writeFile appConfigFilename, jsonApp.pretty(indent=4)
     echo appConfigFilename, " erstellt"
 
 
 
 proc doColorizeInputLines(highlightCommand: HighlightCommand) =
+    ## Reads the lines from stdin and colorizes it.
+    ## Additionally does print line numbers if wished.
     var lineNumber = 0
 
     for line in highlightCommand.inputFile.lines():
@@ -225,13 +269,15 @@ proc doColorizeInputLines(highlightCommand: HighlightCommand) =
             return 0
         )
 
-        if highlightCommand.isDebug:
-            stdout.write "Vorher:\n"
-            for breakpoint in breakpoints:
-                stdout.write "  ", $breakpoint, "\n"
+        when ALLOW_DEBUG_MODE:
+            if highlightCommand.isDebug:
+                stdout.write "Vorher:\n"
+                for breakpoint in breakpoints:
+                    stdout.write "  ", $breakpoint, "\n"
 
-        if highlightCommand.isDebug:
-            echo "Simplifying:"
+        when ALLOW_DEBUG_MODE:
+            if highlightCommand.isDebug:
+                echo "Simplifying:"
 
         # Breakpoint-Liste Reset-Points aufräumen ...
         if breakpoints.len >= 1:
@@ -291,8 +337,9 @@ proc doColorizeInputLines(highlightCommand: HighlightCommand) =
                     if brNext.pos == brNew.pos:
                         continue
 
-                if highlightCommand.isDebug:
-                    echo "  +++ ", brNew
+                when ALLOW_DEBUG_MODE:
+                    if highlightCommand.isDebug:
+                        echo "  +++ ", brNew
 
                 # Neuen Punkt übernehmen ...
                 newBreakpoints.add( brNew )
@@ -301,10 +348,11 @@ proc doColorizeInputLines(highlightCommand: HighlightCommand) =
 
             breakpoints = newBreakpoints
 
-        if highlightCommand.isDebug:
-            stdout.write "Nacher:\n"
-            for breakpoint in breakpoints:
-                stdout.write "  ", $breakpoint, "\n"
+        when ALLOW_DEBUG_MODE:
+            if highlightCommand.isDebug:
+                stdout.write "Nacher:\n"
+                for breakpoint in breakpoints:
+                    stdout.write "  ", $breakpoint, "\n"
 
         block:
             var lineStart = 0
@@ -326,8 +374,9 @@ proc doColorizeInputLines(highlightCommand: HighlightCommand) =
                     stdout.write "\x1B[0;" & $colorCodeBg.bg & "m"
                 elif colorCodeFg.fg == 0 and colorCodeBg.bg == 0:
                     stdout.write(colorCodeReset)
-                if highlightCommand.isDebug:
-                    stdout.write "|"
+                when ALLOW_DEBUG_MODE:
+                    if highlightCommand.isDebug:
+                        stdout.write "|"
             if lineStart < line.len:
                 let linePart = line[lineStart..<line.len]
                 stdout.write linePart
@@ -337,8 +386,12 @@ proc doColorizeInputLines(highlightCommand: HighlightCommand) =
 
 
 proc doExecute*(highlightCommand: HighlightCommand): int =
+    ## Executes the Command according its configuration by command line and optional config file.
     if highlightCommand.isHelp:
         highlightCommand.doPrintHelp()
+        return 0
+    if highlightCommand.isPrintVersion:
+        highlightCommand.doPrintVersion()
         return 0
     elif highlightCommand.isInitConfig:
         highlightCommand.doCreateConfig()
@@ -351,6 +404,7 @@ proc doExecute*(highlightCommand: HighlightCommand): int =
 
 when isMainModule:
     proc highlight_main() =
+        # Entrypoint of the highlighter cli application.
         let highlightCommand = newHighlightCommandFromCliArgs()
         let execResult = highlightCommand.doExecute()
         system.quit(execResult)

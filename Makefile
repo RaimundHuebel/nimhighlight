@@ -8,21 +8,34 @@ default: build
 
 
 .PHONY: build
-build: build/release
+build: dist
 
 
-.PHONY: build/release
-build/release:
-	nimble build -d:release --opt:size highlight
-	-ls -l highlight
-	-strip --strip-all highlight
-	-upx --best highlight
-	-ls -l highlight
+.PHONY: dist
+dist: dist/release dist/debug dist/doc
+
+
+.PHONY: dist/release
+dist/release:
+	mkdir -p dist/release
+	#nimble build -o:dist/release/highlight -d:release --opt:size highlight
+	nim compile -o:dist/release/highlight -d:release --opt:size src/highlight.nim
+	-strip --strip-all dist/release/highlight
+	-upx --best dist/release/highlight
 
 
 .PHONY: build/debug
-build/debug:
-	nimble build highlight
+dist/debug:
+	mkdir -p dist/debug
+	#nimble build -o:dist/debug/highlight -d:allow_debug_mode highlight
+	nim compile -o:dist/debug/highlight -d:allow_debug_mode src/highlight.nim
+
+
+.PHONY: dist/doc
+dist/doc:
+	# see: https://nim-lang.org/docs/docgen.html
+	mkdir -p dist/doc
+	cd dist/doc && nim doc --project --index:on ../../src/highlight.nim
 
 
 .PHONY: test
@@ -30,9 +43,10 @@ test:
 	nimble test
 
 
+
 .PHONY: clean
 clean:
-	$(RM) highlight
+	rm -rf dist highlight
 
 .PHONY: mrproper
 mrproper: clean
