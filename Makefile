@@ -24,7 +24,7 @@ dist/release:
 	-upx --best dist/release/highlight
 
 
-.PHONY: build/debug
+.PHONY: dist/debug
 dist/debug:
 	mkdir -p dist/debug
 	#nimble build -o:dist/debug/highlight -d:allow_debug_mode highlight
