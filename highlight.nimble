@@ -1,6 +1,5 @@
 # Package
-
-version       = "0.1.0"
+version       = "0.1.1"
 author        = "Raimund Hübel"
 description   = "Tool/Lib to highlight text in CLI by using regular expressions."
 license       = "MIT"
@@ -11,5 +10,4 @@ bin           = @["highlight"]
 
 
 # Dependencies
-
 requires "nim >= 1.2.0"

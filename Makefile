@@ -34,9 +34,11 @@ dist/debug:
 .PHONY: dist/doc
 dist/doc:
 	# see: https://nim-lang.org/docs/docgen.html
+	rm -rf dist/doc
 	mkdir -p dist/doc
 	cd dist/doc && nim doc --project --index:on ../../src/highlight.nim
-
+	cd dist/doc && nim doc --project --index:on ../../src/highlight.nim
+	cd dist/doc && nim buildIndex -o:index.html ./
 
 .PHONY: test
 test:

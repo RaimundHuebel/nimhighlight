@@ -1,0 +1,35 @@
+.TH highlight 1 "September 2020" Linux "User Manuals"
+.SH NAME
+highlight \- colorizes the input of stdin by regex.
+.SH SYNOPSIS
+.B highlight OPTIONS
+.SH DESCRIPTION
+.B highlight
+colorizes the lines given by stdin by the given
+.B -e
+Options.
+.SH OPTIONS
+.IP -h
+Show Help.
+.IP -v
+Show version of the program.
+.IP -n
+Show additional line numbers.
+.IP -o
+Omits lines which have are not hitting any regex-entries.
+.IP -e=COLOR-CONFIG-ENTRY
+Adds an colorization-entry to highlight content of stdin.
+
+The Format is -e=REGEX:[FG-COLOR][:[BG-COLOR]]
+
+Valid COLORS are: black, white, red, green, blue, yellow, cyan, magenta
+.IP -i
+Initializes a new config file ($PWD/.highlight.json) with the current configuration of the program.
+.IP -d
+Displays debug-informations. Only available when compiled with -d:allow_debug_mode.
+.SH EXAMPLES
+$ echo "hello dude world" | highlight -e=".+:blue" -e=ello:green -e="l:red" -e=worl:magenta:yellow
+
+$ cat /var/log/syslog | highlight -n -e="^.+:black" -e=CRON:yellow -e=kernel:red:yellow -e=systemd:green
+.SH AUTHOR
+Raimund Hübel <raimund.huebel@googlemail.com>
