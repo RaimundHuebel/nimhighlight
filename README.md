@@ -15,16 +15,32 @@ This project is inspired by the ruby-gem colorize (https://github.com/fazibear/c
 
 Install Nim Highlighter
 
-   ```bash
+   ```shell
    $ nimble install nimhighlight
    ```
 
 
+Using cli-tool hightlight:
+
+   ```shell
+   # Show help ...
+   $ highlight --help
+
+   # Colorize Std-Input ...
+   $ echo "hello dude world" | highlight -e=".+:blue" -e=ello:green -e="l:red" -e=worl:magenta:yellow
+
+   # Example: Highlight keywords in source-file ...
+   $ cat src/highlight.nim | dist/release/highlight -e="^.+:black" -e="while|true|false|when|type|case:yellow" -e="#.+:green" -n
+
+   # Create and use config file ...
+   $ highlight --init -e=".+:blue" -e=ello:green -e="l:red" -e=worl:magenta:yellow
+   $ echo "hello dude world" | highlight
+   ```
 
 Using Nim Highlighter as library
 
    ```nim
-   import highlighter
+   import highlightpkg/colorize
 
    echo "Hello World".green
    echo "Hello World".onYellow
@@ -35,7 +51,7 @@ Using Nim Highlighter as library
 
 ### Running Tests
 
-   ```bash
+   ```shell
    $ nimble test
    ```
 
@@ -43,4 +59,4 @@ Using Nim Highlighter as library
 
 ## Links
 
-- [Repository of Nim Pathname](https://github.com/RaimundHuebel/NimPathname)
+- [Repository of Nim Highlight](https://github.com/RaimundHuebel/nimhighlight)

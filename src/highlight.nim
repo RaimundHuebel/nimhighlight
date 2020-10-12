@@ -13,6 +13,7 @@ proc main() =
         .initWithDefaultConfigFiles()
         .initWithCliArgs()
     )
-    let execResult = highlightCommand.doExecute()
-    system.quit(execResult)
+    let returnCode = highlightCommand.doExecute()
+    system.quit(returnCode)
+
 main()

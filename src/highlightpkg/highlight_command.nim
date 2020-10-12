@@ -83,21 +83,21 @@ proc newHighlightCommand*(): HighlightCommand =
 proc initWithConfigFile*(
     self: HighlightCommand,
     configFilepath: string
-  ): HighlightCommand {.discardable.}  =
+  ): HighlightCommand {.discardable.} =
     ## Initializes the Command with the given Config-File.
     if not os.existsFile(configFilepath):
         self.configErrors.add("config-file: '" & configFilepath & "' does not exist")
-        return
-    let jsonApp = json.parseFile(configFilepath)
+        return self
+    let jsonConf = json.parseFile(configFilepath)
     when ALLOW_DEBUG_MODE:
-        if jsonApp.hasKey("isDebug"):
-            self.isDebug = jsonApp["isDebug"].getBool(false)
-    if jsonApp.hasKey("isPrintLineNumbers"):
-        self.isPrintLineNumbers = jsonApp["isPrintLineNumbers"].getBool(false)
-    if jsonApp.hasKey("isPrintHitsOnly"):
-        self.isPrintHitsOnly = jsonApp["isPrintHitsOnly"].getBool(false)
-    if jsonApp.hasKey("colorEntries"):
-        let jsonEntries = jsonApp["colorEntries"].getElems()
+        if jsonConf.hasKey("isDebug"):
+            self.isDebug = jsonConf["isDebug"].getBool(false)
+    if jsonConf.hasKey("isPrintLineNumbers"):
+        self.isPrintLineNumbers = jsonConf["isPrintLineNumbers"].getBool(false)
+    if jsonConf.hasKey("isPrintHitsOnly"):
+        self.isPrintHitsOnly = jsonConf["isPrintHitsOnly"].getBool(false)
+    if jsonConf.hasKey("colorEntries"):
+        let jsonEntries = jsonConf["colorEntries"].getElems()
         for jsonEntry in jsonEntries:
             let entryStr = jsonEntry.getStr()
             let configParts = entryStr.split(':', 3)
@@ -130,7 +130,7 @@ proc initWithDefaultConfigFiles*(
     ## 1. $APPDIR/.highlight.json
     ## 2. $HOME/.config/highlight/highlight.json
     ## 3. $PWD/.highlight.json
-    let appFilename = os.splitFile(os.getAppFilename()).name
+    let appFilename = os.getAppFilename().lastPathPart()
     let configFilepaths = @[
         # $APPDIR/.highlight.json
         os.splitFile(os.getAppFilename()).dir & os.DirSep & "." & appFilename & ".json",
@@ -150,7 +150,7 @@ proc initWithCliArgs*(
     args: seq[TaintedString],
     ignoreArguments: bool = false,
     ignoreUnknownOptions: bool = false
-  ): HighlightCommand {.discardable.}  =
+  ): HighlightCommand {.discardable.} =
     ## Initializes the Command from the given CLI-Args.
     var optParser = initOptParser(args)
     for optKind, optKey, optVal in optParser.getopt():
@@ -208,7 +208,7 @@ proc initWithCliArgs*(
     self: HighlightCommand,
     ignoreArguments: bool = false,
     ignoreUnknownOptions: bool = false
-  ): HighlightCommand {.discardable.}  =
+  ): HighlightCommand {.discardable.} =
     ## Initializes the Command with the CLI-Args when the program was executed.
     self.initWithCliArgs(
         os.commandLineParams(),
@@ -281,23 +281,23 @@ proc doCreateConfig(self: HighlightCommand) =
     ## Creates a config file in the current working directory with the name '.highlight.json'.
     let appConfigFilename = "." & os.extractFilename(os.getAppFilename()) & ".json"
     echo "Erstelle " & appConfigFilename
-    let jsonApp = newJObject()
+    let jsonConf = newJObject()
     when ALLOW_DEBUG_MODE:
         if self.isDebug:
-            jsonApp.add( "isDebug", newJBool(true) )
+            jsonConf.add( "isDebug", newJBool(true) )
     if self.isPrintLineNumbers:
-        jsonApp.add( "isPrintLineNumbers", newJBool(true) )
+        jsonConf.add( "isPrintLineNumbers", newJBool(true) )
     if self.isPrintHitsOnly:
-        jsonApp.add( "isPrintHitsOnly", newJBool(true) )
+        jsonConf.add( "isPrintHitsOnly", newJBool(true) )
     let jsonEntries = newJArray()
     for configEntry in self.configEntries:
         let jsonEntry = newJString(configEntry.regexp & ":" & configEntry.colorFg & ":" & configEntry.colorBg)
         jsonEntries.add(jsonEntry)
-    jsonApp.add( "colorEntries", jsonEntries )
+    jsonConf.add( "colorEntries", jsonEntries )
     when ALLOW_DEBUG_MODE:
         if self.isDebug:
-            echo jsonApp.pretty(indent=4)
-    writeFile appConfigFilename, jsonApp.pretty(indent=4)
+            echo jsonConf.pretty(indent=4)
+    writeFile appConfigFilename, jsonConf.pretty(indent=4)
     echo appConfigFilename, " erstellt"
 
 
